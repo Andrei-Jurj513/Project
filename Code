@@ -1,0 +1,108 @@
+#In order to account for the lack of modern techniques like CDCL for dpll,the dpll results in the table are further divided by 3.
+#For better visibility the results provided in the table were aproximated and multiplied by x10,x100 etc to remove as many 0s
+
+import time
+import random
+
+def generate_random_clauses(num_vars, num_clauses):
+    clauses = []
+    for _ in range(num_clauses):
+        clause = [random.choice([i, -i]) for i in random.sample(range(1, num_vars + 1), random.randint(1, num_vars))]
+        clauses.append(clause)
+    return clauses
+
+def resolution(clauses):
+    resolved_clauses = clauses.copy()
+    for i in range(len(clauses)):
+        for j in range(i + 1, len(clauses)):
+            clause1 = set(clauses[i])
+            clause2 = set(clauses[j])
+            resolved = clause1 & {-literal for literal in clause2}
+            if resolved:
+                resolved_clauses.append(list(resolved))
+    return resolved_clauses
+
+def davis_putnam(clauses, variables):
+    def unit_propagation(clauses):
+        unit_clauses = [clause for clause in clauses if len(clause) == 1]
+        while unit_clauses:
+            unit = unit_clauses.pop()
+            literal = unit[0]
+            clauses = [clause for clause in clauses if literal not in clause]
+            for clause in clauses:
+                if -literal in clause:
+                    clause.remove(-literal)
+            clauses = [clause for clause in clauses if clause]
+        return clauses
+
+    clauses = unit_propagation(clauses)
+
+    if not clauses:
+        return True
+    if any([not clause for clause in clauses]):
+        return False
+
+    var = variables[0]
+    new_clauses = [clause for clause in clauses if var not in clause]
+    if davis_putnam(new_clauses, variables[1:]):
+        return True
+    return False
+
+def dpll(clauses, variables):
+    def unit_propagation(clauses):
+        unit_clauses = [clause for clause in clauses if len(clause) == 1]
+        while unit_clauses:
+            unit = unit_clauses.pop()
+            literal = unit[0]
+            clauses = [clause for clause in clauses if literal not in clause]
+            for clause in clauses:
+                if -literal in clause:
+                    clause.remove(-literal)
+            clauses = [clause for clause in clauses if clause]
+        return clauses
+
+    def pure_literal_elimination(clauses):
+        literals = set(lit for clause in clauses for lit in clause)
+        pure_literals = {lit for lit in literals if -lit not in literals}
+        for lit in pure_literals:
+            clauses = [clause for clause in clauses if lit not in clause]
+        return clauses
+
+    clauses = unit_propagation(clauses)
+    clauses = pure_literal_elimination(clauses)
+
+    if not clauses:
+        return True
+    if any([not clause for clause in clauses]):
+        return False
+
+    var = variables[0]
+    new_clauses = [clause for clause in clauses if var not in clause]
+    if dpll(new_clauses, variables[1:]):
+        return True
+    return False
+
+def compare_execution_times():
+    num_vars = 10
+    num_clauses = 10
+    clauses = generate_random_clauses(num_vars, num_clauses)
+    variables = list(range(1, num_vars + 1))
+
+    print(f"Testing with {num_vars} variables and {num_clauses} clauses.")
+
+    start_time = time.perf_counter()
+    resolution_result = resolution(clauses)
+    resolution_time = time.perf_counter() - start_time
+    print(f"Resolution Time: {resolution_time:.6f} seconds")
+
+    start_time = time.perf_counter()
+    dp_result = davis_putnam(clauses, variables)
+    dp_time = time.perf_counter() - start_time
+    print(f"Davis-Putnam Time: {dp_time:.6f} seconds")
+
+    start_time = time.perf_counter()
+    dpll_result = dpll(clauses, variables)
+    dpll_time = time.perf_counter() - start_time
+    print(f"DPLL Time: {dpll_time:.6f} seconds")
+
+compare_execution_times()
